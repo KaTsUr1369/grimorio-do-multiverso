@@ -4,7 +4,7 @@ Site do **Escolhidos pelo Multiverso RPG (EPM)**: magias, rituais e habilidades,
 
 **Endereço:** https://katsur1369.github.io/grimorio-do-multiverso/
 
-## No Foundry (módulo `epm-ficha` 0.9.3 ou mais novo)
+## No Foundry (módulo `epm-ficha` 0.9.2 ou mais novo)
 
 O módulo abre este site numa janela do Foundry (botão **Grimório** na aba Habilidades, **Site** na aba Magias, **Site do Grimório** no Escudo do Mestre).
 
