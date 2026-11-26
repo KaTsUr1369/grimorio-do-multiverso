@@ -1,0 +1,59 @@
+# Publica o Grimório do Multiverso no GitHub Pages acompanhando o módulo epm-ficha.
+# - Pega a main do KaTsUr1369/epm-ficha: site/index.html e as magias de scripts/grimorio-dados.mjs.
+# - Gera grimorio.json (com a versão do module.json) e publica.
+# - Se o módulo ainda não tiver a pasta site/, usa o index.html deste repositório.
+# Roda a cada 15 minutos, em todo envio para a main daqui e pelo botão "Run workflow".
+name: Publicar o Grimório
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: grimorio
+      - uses: actions/checkout@v4
+        with:
+          repository: KaTsUr1369/epm-ficha
+          ref: main
+          path: epm
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Montar o site
+        run: |
+          mkdir -p _site
+          if [ -f epm/site/index.html ]; then cp epm/site/index.html _site/; else cp grimorio/index.html _site/; fi
+          touch _site/.nojekyll
+          node --input-type=module -e '
+            import fs from "fs";
+            const { GRIMORIO } = await import(process.cwd() + "/epm/scripts/grimorio-dados.mjs");
+            const modulo = JSON.parse(fs.readFileSync("epm/module.json", "utf8")).version;
+            fs.writeFileSync("_site/grimorio.json", JSON.stringify({ ...GRIMORIO, modulo }));
+            console.log(`EPM ${modulo}: ${GRIMORIO.magias.length} registros`);
+          '
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v4

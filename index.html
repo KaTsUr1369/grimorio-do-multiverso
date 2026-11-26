@@ -402,7 +402,7 @@
     const magias = DADOS.magias.filter(m => m.tipo !== "ritual");
     $("qtd-magias").textContent = magias.length;
     $("qtd-rituais").textContent = DADOS.magias.length - magias.length;
-    $("versao").textContent = `${DADOS.magias.length} registros · ${DADOS.versao.split("-").reverse().join("/")}`;
+    $("versao").textContent = `${DADOS.magias.length} registros · ${DADOS.versao.split("-").reverse().join("/")}${DADOS.modulo ? ` · EPM ${DADOS.modulo}` : ""}`;
     $("chips").innerHTML = SECOES.map(s => `<button type="button" class="chip" data-secao="${s.id}">${s.label}<span class="n">${magias.filter(m => "c" + m.circulo === s.id).length}</span></button>`).join("");
     for (const e of [...new Set(DADOS.magias.map(m => m.escola))].sort((a, b) => a.localeCompare(b, "pt-BR"))) $("f-escola").insertAdjacentHTML("beforeend", `<option>${esc(e)}</option>`);
     for (const [k, l] of Object.entries(EXEC)) $("f-exec").insertAdjacentHTML("beforeend", `<option value="${k}">${l}</option>`);
