@@ -3,6 +3,8 @@
 # - Gera grimorio.json (com a versão do module.json) e publica.
 # - Se o módulo ainda não tiver a pasta site/, usa o index.html deste repositório.
 # Roda a cada 15 minutos, em todo envio para a main daqui e pelo botão "Run workflow".
+# Pelo agendamento, só publica se a main do módulo mudou desde a última publicação (versao.txt no site).
+# Se o deploy falhar por instabilidade do GitHub (artefato não encontrado), tenta de novo uma vez.
 name: Publicar o Grimório
 
 on:
@@ -26,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deploy.outputs.page_url || steps.deploy1.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,14 +38,29 @@ jobs:
           repository: KaTsUr1369/epm-ficha
           ref: main
           path: epm
+      - name: Mudou algo no módulo?
+        id: mudou
+        run: |
+          SHA=$(git -C epm rev-parse HEAD)
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+          PUBLICADO=$(curl -fsSL "https://katsur1369.github.io/grimorio-do-multiverso/versao.txt?t=$(date +%s)" 2>/dev/null || true)
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$PUBLICADO" = "$SHA" ]; then
+            echo "Nada novo no epm-ficha ($SHA); não publica."
+            echo "publicar=nao" >> "$GITHUB_OUTPUT"
+          else
+            echo "publicar=sim" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-node@v4
+        if: steps.mudou.outputs.publicar == 'sim'
         with:
           node-version: 20
       - name: Montar o site
+        if: steps.mudou.outputs.publicar == 'sim'
         run: |
           mkdir -p _site
           if [ -f epm/site/index.html ]; then cp epm/site/index.html _site/; else cp grimorio/index.html _site/; fi
           touch _site/.nojekyll
+          echo "${{ steps.mudou.outputs.sha }}" > _site/versao.txt
           node --input-type=module -e '
             import fs from "fs";
             const { GRIMORIO } = await import(process.cwd() + "/epm/scripts/grimorio-dados.mjs");
@@ -52,8 +69,18 @@ jobs:
             console.log(`EPM ${modulo}: ${GRIMORIO.magias.length} registros`);
           '
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+        if: steps.mudou.outputs.publicar == 'sim'
+      - uses: actions/upload-pages-artifact@v4
+        if: steps.mudou.outputs.publicar == 'sim'
         with:
           path: _site
+      - id: deploy1
+        if: steps.mudou.outputs.publicar == 'sim'
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+      - name: Esperar antes de tentar de novo
+        if: steps.mudou.outputs.publicar == 'sim' && steps.deploy1.outcome == 'failure'
+        run: sleep 30
       - id: deploy
+        if: steps.mudou.outputs.publicar == 'sim' && steps.deploy1.outcome == 'failure'
         uses: actions/deploy-pages@v4
